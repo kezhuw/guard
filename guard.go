@@ -42,6 +42,7 @@ func (g *Guard) unlock(c chan struct{}) {
 	if g.off == l || g.locks[g.off] != c {
 		panic("guard.Guard: unlocking unlocked")
 	}
+	g.locks[g.off] = nil
 	g.off++
 	switch {
 	case g.off == l:
@@ -50,8 +51,15 @@ func (g *Guard) unlock(c chan struct{}) {
 	default:
 		unblock(g.locks[g.off])
 		if g.off >= l/2 || g.off >= 32 {
-			n := l - g.off
 			copy(g.locks, g.locks[g.off:l])
+			n := l - g.off
+			i := g.off
+			if n > i {
+				i = n
+			}
+			for ; i < l; i++ {
+				g.locks[i] = nil
+			}
 			g.off = 0
 			g.locks = g.locks[:n]
 		}

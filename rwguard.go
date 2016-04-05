@@ -78,6 +78,7 @@ func (rw *RWGuard) unlockWrite(c chan struct{}) {
 	if len(rw.readers) != 0 || i == l || rw.waiters[i].c != c {
 		panic("guard.RWGuard: unlocking unlocked writer")
 	}
+	rw.waiters[i].c = nil
 	i++
 	switch {
 	case i == l:
@@ -90,6 +91,7 @@ func (rw *RWGuard) unlockWrite(c chan struct{}) {
 			unblock(c)
 		default:
 			unblock(c)
+			rw.waiters[i].c = nil
 			rw.readers[c] = struct{}{}
 			i++
 			for ; i < l; i++ {
@@ -98,6 +100,7 @@ func (rw *RWGuard) unlockWrite(c chan struct{}) {
 				}
 				c := rw.waiters[i].c
 				unblock(c)
+				rw.waiters[i].c = nil
 				rw.readers[c] = struct{}{}
 			}
 			if i == l {
@@ -108,8 +111,14 @@ func (rw *RWGuard) unlockWrite(c chan struct{}) {
 		}
 		switch {
 		case i >= l/2 || i >= 32:
-			n := l - i
 			copy(rw.waiters, rw.waiters[i:l])
+			n := l - i
+			if n > i {
+				i = n
+			}
+			for ; i < l; i++ {
+				rw.waiters[i].c = nil
+			}
 			rw.off = 0
 			rw.waiters = rw.waiters[:n]
 		default:
