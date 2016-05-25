@@ -86,7 +86,7 @@ func (g *Guard) unlock(c chan *Guard) {
 		g.locks = g.locks[:0]
 	default:
 		unblockGuardLocker(g.locks[g.off], g)
-		if g.off >= l/2 || g.off >= 32 {
+		if g.off > maxHoleOffset {
 			copy(g.locks, g.locks[g.off:l])
 			n := l - g.off
 			collectLockers(g.locks[maxInt(g.off, n):l])

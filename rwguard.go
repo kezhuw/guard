@@ -185,7 +185,7 @@ func (g *RWGuard) unlockWrite(c chan *RWGuard) {
 			}
 		}
 		switch {
-		case i >= l/2 || i >= 32:
+		case i > maxHoleOffset:
 			copy(g.waiters, g.waiters[i:l])
 			n := l - i
 			collectWaiters(g.waiters[maxInt(i, n):l])
