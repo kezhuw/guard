@@ -218,7 +218,7 @@ func (g *RWGuard) NewReader() Locker {
 		g.mu.Unlock()
 		unblockRWGuardLocker(c, g)
 	default:
-		g.waiters = append(g.waiters, waiter{c: c})
+		g.waiters = append(g.waiters, waiter{c: c, writing: false})
 		g.mu.Unlock()
 	}
 	return &reader{c: c}
