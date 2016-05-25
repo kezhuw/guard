@@ -1,4 +1,4 @@
-// package guard provides facilities to create lockers
+// Package guard provides facilities to create lockers
 // which can be locked in predetermined order.
 //
 // Guard and RWGuard can be used in one goroutine to create lockers,
