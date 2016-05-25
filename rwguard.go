@@ -224,8 +224,8 @@ func (g *RWGuard) NewReader() Locker {
 	return &reader{c: c}
 }
 
-// NewWriter creates a Locker for write permission acquisition.
-// Lockers, including readers and writers, will not acquire their permission
+// NewWriter creates a Locker for write permission acquisition. Lockers created
+// after, including readers and writers, will not acquire their permission
 // before this one got locked/unlocked or released.
 func (g *RWGuard) NewWriter() Locker {
 	c := make(chan *RWGuard, 1)
