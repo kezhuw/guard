@@ -113,17 +113,18 @@ func (rw *RWGuard) unlockWrite(c chan struct{}) {
 		case i >= l/2 || i >= 32:
 			copy(rw.waiters, rw.waiters[i:l])
 			n := l - i
-			if n > i {
-				i = n
-			}
-			for ; i < l; i++ {
-				rw.waiters[i].c = nil
-			}
+			collectWaiters(rw.waiters[maxInt(i, n):l])
 			rw.off = 0
 			rw.waiters = rw.waiters[:n]
 		default:
 			rw.off = i
 		}
+	}
+}
+
+func collectWaiters(waiters []waiter) {
+	for i, n := 0, len(waiters); i < n; i++ {
+		waiters[i].c = nil
 	}
 }
 

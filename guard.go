@@ -53,18 +53,18 @@ func (g *Guard) unlock(c chan struct{}) {
 		if g.off >= l/2 || g.off >= 32 {
 			copy(g.locks, g.locks[g.off:l])
 			n := l - g.off
-			i := g.off
-			if n > i {
-				i = n
-			}
-			for ; i < l; i++ {
-				g.locks[i] = nil
-			}
+			collectLockers(g.locks[maxInt(g.off, n):l])
 			g.off = 0
 			g.locks = g.locks[:n]
 		}
 	}
 	g.mu.Unlock()
+}
+
+func collectLockers(lockers []chan struct{}) {
+	for i, n := 0, len(lockers); i < n; i++ {
+		lockers[i] = nil
+	}
 }
 
 // NewLocker creates a Locker for exclusive access permission acquisition.
