@@ -59,65 +59,65 @@ type RWGuard struct {
 	waiters []waiter
 }
 
-func (rw *RWGuard) unlockRead(c chan struct{}) {
-	rw.mu.Lock()
-	defer rw.mu.Unlock()
-	if _, ok := rw.readers[c]; !ok {
+func (g *RWGuard) unlockRead(c chan struct{}) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if _, ok := g.readers[c]; !ok {
 		panic("guard.RWGuard: unlocking unlocked reader")
 	}
-	delete(rw.readers, c)
-	if len(rw.readers) == 0 && rw.off != len(rw.waiters) {
-		unblock(rw.waiters[rw.off].c)
+	delete(g.readers, c)
+	if len(g.readers) == 0 && g.off != len(g.waiters) {
+		unblock(g.waiters[g.off].c)
 	}
 }
 
-func (rw *RWGuard) unlockWrite(c chan struct{}) {
-	rw.mu.Lock()
-	defer rw.mu.Unlock()
-	i, l := rw.off, len(rw.waiters)
-	if len(rw.readers) != 0 || i == l || rw.waiters[i].c != c {
+func (g *RWGuard) unlockWrite(c chan struct{}) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	i, l := g.off, len(g.waiters)
+	if len(g.readers) != 0 || i == l || g.waiters[i].c != c {
 		panic("guard.RWGuard: unlocking unlocked writer")
 	}
-	rw.waiters[i].c = nil
+	g.waiters[i].c = nil
 	i++
 	switch {
 	case i == l:
-		rw.off = 0
-		rw.waiters = rw.waiters[:0]
+		g.off = 0
+		g.waiters = g.waiters[:0]
 	default:
-		c := rw.waiters[i].c
-		switch rw.waiters[i].writing {
+		c := g.waiters[i].c
+		switch g.waiters[i].writing {
 		case true:
 			unblock(c)
 		default:
 			unblock(c)
-			rw.waiters[i].c = nil
-			rw.readers[c] = struct{}{}
+			g.waiters[i].c = nil
+			g.readers[c] = struct{}{}
 			i++
 			for ; i < l; i++ {
-				if rw.waiters[i].writing {
+				if g.waiters[i].writing {
 					break
 				}
-				c := rw.waiters[i].c
+				c := g.waiters[i].c
 				unblock(c)
-				rw.waiters[i].c = nil
-				rw.readers[c] = struct{}{}
+				g.waiters[i].c = nil
+				g.readers[c] = struct{}{}
 			}
 			if i == l {
-				rw.off = 0
-				rw.waiters = rw.waiters[:0]
+				g.off = 0
+				g.waiters = g.waiters[:0]
 				return
 			}
 		}
 		switch {
 		case i >= l/2 || i >= 32:
-			copy(rw.waiters, rw.waiters[i:l])
+			copy(g.waiters, g.waiters[i:l])
 			n := l - i
-			collectWaiters(rw.waiters[maxInt(i, n):l])
-			rw.off = 0
-			rw.waiters = rw.waiters[:n]
+			collectWaiters(g.waiters[maxInt(i, n):l])
+			g.off = 0
+			g.waiters = g.waiters[:n]
 		default:
-			rw.off = i
+			g.off = i
 		}
 	}
 }
@@ -131,35 +131,35 @@ func collectWaiters(waiters []waiter) {
 // NewReader creates a Locker for read permission acquisition.
 // Writers created after will not acquire their permission before this one got
 // locked/unlocked or released.
-func (rw *RWGuard) NewReader() Locker {
+func (g *RWGuard) NewReader() Locker {
 	c := make(chan struct{}, 1)
-	rw.mu.Lock()
-	if rw.readers == nil {
-		rw.readers = make(map[chan struct{}]struct{})
+	g.mu.Lock()
+	if g.readers == nil {
+		g.readers = make(map[chan struct{}]struct{})
 	}
 	switch {
-	case rw.off == len(rw.waiters):
-		rw.readers[c] = struct{}{}
-		rw.mu.Unlock()
+	case g.off == len(g.waiters):
+		g.readers[c] = struct{}{}
+		g.mu.Unlock()
 		unblock(c)
 	default:
-		rw.waiters = append(rw.waiters, waiter{c: c})
-		rw.mu.Unlock()
+		g.waiters = append(g.waiters, waiter{c: c})
+		g.mu.Unlock()
 	}
-	return &reader{g: rw, c: c}
+	return &reader{g: g, c: c}
 }
 
 // NewWriter creates a Locker for write permission acquisition.
 // Lockers, including readers and writers, will not acquire their permission
 // before this one got locked/unlocked or released.
-func (rw *RWGuard) NewWriter() Locker {
+func (g *RWGuard) NewWriter() Locker {
 	c := make(chan struct{}, 1)
-	rw.mu.Lock()
-	owned := len(rw.readers) == 0 && len(rw.waiters) == 0
-	rw.waiters = append(rw.waiters, waiter{c: c, writing: true})
-	rw.mu.Unlock()
+	g.mu.Lock()
+	owned := len(g.readers) == 0 && len(g.waiters) == 0
+	g.waiters = append(g.waiters, waiter{c: c, writing: true})
+	g.mu.Unlock()
 	if owned {
 		unblock(c)
 	}
-	return &writer{g: rw, c: c}
+	return &writer{g: g, c: c}
 }
