@@ -121,7 +121,7 @@ type waiter struct {
 	writing bool
 }
 
-// RWGuard grants read and/or write permission to clients.
+// RWGuard grants read or write permission to clients.
 type RWGuard struct {
 	mu      sync.Mutex
 	off     int
